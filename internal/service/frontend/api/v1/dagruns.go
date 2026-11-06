@@ -59,6 +59,7 @@ const statusClientClosedRequest = 499
 const maxLogReadLines = 10000
 const artifactTextPreviewMaxBytes int64 = 2 * 1024 * 1024
 const artifactImagePreviewMaxBytes int64 = 5 * 1024 * 1024
+const artifactVideoPreviewMaxBytes int64 = 512 * 1024 * 1024
 
 var errArtifactUnavailable = errors.New("artifact directory not found")
 
@@ -5103,7 +5104,7 @@ func buildArtifactPreview(archiveDir, relPath string) (api.ArtifactPreviewRespon
 		TooLarge:  tooLarge,
 		Truncated: false,
 	}
-	if tooLarge || previewLimit <= 0 {
+	if tooLarge || previewLimit <= 0 || !artifactPreviewHasContent(kind) {
 		return resp, nil
 	}
 	if _, err := file.Seek(0, io.SeekStart); err != nil {
@@ -5118,13 +5119,17 @@ func buildArtifactPreview(archiveDir, relPath string) (api.ArtifactPreviewRespon
 		previewBytes = previewBytes[:previewLimit]
 		resp.Truncated = true
 	}
-	if kind == api.ArtifactPreviewKindMarkdown ||
-		kind == api.ArtifactPreviewKindHtml ||
-		kind == api.ArtifactPreviewKindText {
-		content := string(previewBytes)
-		resp.Content = &content
-	}
+	content := string(previewBytes)
+	resp.Content = &content
 	return resp, nil
+}
+
+// artifactPreviewHasContent reports whether a preview carries the file inline.
+// Images and videos are fetched through the download endpoint instead.
+func artifactPreviewHasContent(kind api.ArtifactPreviewKind) bool {
+	return kind == api.ArtifactPreviewKindMarkdown ||
+		kind == api.ArtifactPreviewKindHtml ||
+		kind == api.ArtifactPreviewKindText
 }
 
 func openArtifactFile(archiveDir, relPath string) (*os.File, os.FileInfo, error) {
@@ -5169,9 +5174,14 @@ func artifactPreviewKind(path, mimeType string) api.ArtifactPreviewKind {
 		return api.ArtifactPreviewKindMarkdown
 	case ".html", ".htm":
 		return api.ArtifactPreviewKindHtml
+	case ".mp4", ".m4v", ".webm", ".mov":
+		return api.ArtifactPreviewKindVideo
 	}
 	if strings.HasPrefix(mimeType, "image/") {
 		return api.ArtifactPreviewKindImage
+	}
+	if strings.HasPrefix(mimeType, "video/") {
+		return api.ArtifactPreviewKindVideo
 	}
 	if mimeType == "text/html" {
 		return api.ArtifactPreviewKindHtml
@@ -5193,6 +5203,8 @@ func artifactPreviewLimit(kind api.ArtifactPreviewKind) int64 {
 		return artifactTextPreviewMaxBytes
 	case api.ArtifactPreviewKindImage:
 		return artifactImagePreviewMaxBytes
+	case api.ArtifactPreviewKindVideo:
+		return artifactVideoPreviewMaxBytes
 	case api.ArtifactPreviewKindBinary:
 		return 0
 	}

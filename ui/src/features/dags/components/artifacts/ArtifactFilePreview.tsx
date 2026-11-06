@@ -169,7 +169,7 @@ export function ArtifactFilePreview({
   useEffect(() => {
     if (
       !preview ||
-      preview.kind !== 'image' ||
+      (preview.kind !== 'image' && preview.kind !== 'video') ||
       preview.tooLarge ||
       !path
     ) {
@@ -499,6 +499,23 @@ export function ArtifactFilePreview({
           ) : (
             <div className="text-sm text-muted-foreground">
               <I18nText text={'Loading image preview...'} />
+            </div>
+          )
+        ) : preview.kind === 'video' ? (
+          imageUrl ? (
+            <video
+              src={imageUrl}
+              controls
+              preload="metadata"
+              aria-label={preview.name}
+              className={cn(
+                'max-w-full rounded-md border border-border',
+                fillHeight ? 'max-h-full' : 'max-h-[40rem]'
+              )}
+            />
+          ) : (
+            <div className="text-sm text-muted-foreground">
+              <I18nText text={'Loading video preview...'} />
             </div>
           )
         ) : (

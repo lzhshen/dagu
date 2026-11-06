@@ -16755,6 +16755,7 @@ components:
         - "html"
         - "text"
         - "image"
+        - "video"
         - "binary"
 
     ArtifactPreviewResponse:

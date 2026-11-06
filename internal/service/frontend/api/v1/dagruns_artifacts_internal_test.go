@@ -68,6 +68,31 @@ func TestBuildArtifactPreviewReturnsMetadataWithoutContentForLargeImages(t *test
 	assert.Greater(t, preview.Size, artifactImagePreviewMaxBytes)
 }
 
+func TestBuildArtifactPreviewTreatsVideoAsPlayableWithoutInlineContent(t *testing.T) {
+	t.Parallel()
+
+	archiveDir := t.TempDir()
+	// Larger than the image limit: a real lesson video is tens of megabytes.
+	content := append([]byte("\x00\x00\x00\x18ftypmp42"), bytes.Repeat([]byte("a"), int(artifactImagePreviewMaxBytes))...)
+	path := filepath.Join(archiveDir, "video.mp4")
+	require.NoError(t, os.WriteFile(path, content, 0o600))
+
+	preview, err := buildArtifactPreview(archiveDir, "video.mp4")
+	require.NoError(t, err)
+	assert.Equal(t, openapiv1.ArtifactPreviewKindVideo, preview.Kind)
+	assert.False(t, preview.TooLarge)
+	assert.False(t, preview.Truncated)
+	assert.Nil(t, preview.Content)
+}
+
+func TestArtifactPreviewLimitRejectsVideosOverTheVideoLimit(t *testing.T) {
+	t.Parallel()
+
+	assert.Equal(t, artifactVideoPreviewMaxBytes, artifactPreviewLimit(openapiv1.ArtifactPreviewKindVideo))
+	assert.Equal(t, openapiv1.ArtifactPreviewKindVideo, artifactPreviewKind("clip.webm", "application/octet-stream"))
+	assert.Equal(t, openapiv1.ArtifactPreviewKindVideo, artifactPreviewKind("clip.bin", "video/mp4"))
+}
+
 func TestBuildArtifactPreviewAllowsLargerTextWithinTextLimit(t *testing.T) {
 	t.Parallel()
 

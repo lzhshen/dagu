@@ -23910,6 +23910,7 @@ export enum ArtifactPreviewKind {
     html = "html",
     text = "text",
     image = "image",
+    video = "video",
     binary = "binary"
 }
 export enum AgentEventKind {
